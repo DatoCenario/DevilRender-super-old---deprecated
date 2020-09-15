@@ -27,16 +27,16 @@ namespace DevilRender
             var model = ObjParser.FromObjFile(@"F:\c#\DevilRender\DevilRender\Models\Cyborg_Weapon.obj" , texure);
             model.Scale(1000f);
             model.Rotate(1.57f  , Axis.Y);
-            enviroment.Primitives.Add(model);
+            enviroment.AddPrimitive(model);
         }
 
         public static void CreateSylvanasScene(Enviroment enviroment)
         {
             var model = ObjParser.FromObjFile(@"F:\c#\DevilRender\DevilRender\Models\sylvanas_obj.obj", null);
-            model.Scale(10f);
-            model.Move(new Vector3(0, -2200, 300));
+            model.Scale(1f);
             model.Rotate(3.14f + 0.5f, Axis.Y);
-            enviroment.Primitives.Add(model);
+            model.Move(new Vector3(0, -2200, 0));
+            enviroment.AddPrimitive(model);
         }
         public static void CreateCubeScene(Enviroment enviroment)
         {
