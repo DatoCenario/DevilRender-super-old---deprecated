@@ -35,7 +35,7 @@ public class PhongModelShader : IShader
                 var reflect = proection - d;
                 var diffuseVal = Math.Max(VectorMath.Cross(ldir, vertex.Normal), 0) * light.Intensivity;
                 //луч от наблюдателя
-                var eye = Vector3.Normalize(vertex.Position);
+                var eye = Vector3.Normalize(-vertex.Position);
                 var reflectVal = Math.Max(VectorMath.Cross(reflect, eye), 0) * light.Intensivity;
                 var total = diffuseVal * DiffuseCoef + reflectVal * ReflectCoef;
                 vertex.Color = Color.FromArgb(vertex.Color.A,
