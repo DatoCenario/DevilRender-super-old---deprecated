@@ -11,7 +11,7 @@ namespace DevilRender
 {
     public interface IShader
     {
-        void ComputeShader(Vertex vertex, Camera camera);
+        void ComputeShader(ref Vertex vertex, Camera camera);
     }
 
 

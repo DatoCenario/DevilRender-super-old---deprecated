@@ -10,7 +10,7 @@ namespace DevilRender.Primitives
 {
     class Polygon : Primitive
     {
-        public Polygon(Vector3 v1, Vector3 v2 ,Vector3 v3)
+        public Polygon(Vector3 v1, Vector3 v2 ,Vector3 v3) : base()
         {
             Pivot = Pivot.BasePivot(v1);
             GlobalVertices = new[] { v1,v2,v3};

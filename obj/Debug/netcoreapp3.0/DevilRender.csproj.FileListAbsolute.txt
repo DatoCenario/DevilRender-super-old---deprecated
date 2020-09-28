@@ -1,0 +1,13 @@
+F:\c#\DevilRender\DevilRender\bin\Debug\netcoreapp3.0\DevilRender.exe
+F:\c#\DevilRender\DevilRender\bin\Debug\netcoreapp3.0\DevilRender.deps.json
+F:\c#\DevilRender\DevilRender\bin\Debug\netcoreapp3.0\DevilRender.runtimeconfig.json
+F:\c#\DevilRender\DevilRender\bin\Debug\netcoreapp3.0\DevilRender.runtimeconfig.dev.json
+F:\c#\DevilRender\DevilRender\bin\Debug\netcoreapp3.0\DevilRender.dll
+F:\c#\DevilRender\DevilRender\bin\Debug\netcoreapp3.0\DevilRender.pdb
+F:\c#\DevilRender\DevilRender\obj\Debug\netcoreapp3.0\DevilRender.csprojAssemblyReference.cache
+F:\c#\DevilRender\DevilRender\obj\Debug\netcoreapp3.0\DevilRender.AssemblyInfoInputs.cache
+F:\c#\DevilRender\DevilRender\obj\Debug\netcoreapp3.0\DevilRender.AssemblyInfo.cs
+F:\c#\DevilRender\DevilRender\obj\Debug\netcoreapp3.0\DevilRender.csproj.CoreCompileInputs.cache
+F:\c#\DevilRender\DevilRender\obj\Debug\netcoreapp3.0\DevilRender.dll
+F:\c#\DevilRender\DevilRender\obj\Debug\netcoreapp3.0\DevilRender.pdb
+F:\c#\DevilRender\DevilRender\obj\Debug\netcoreapp3.0\DevilRender.genruntimeconfig.cache

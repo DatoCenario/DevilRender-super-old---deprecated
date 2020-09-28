@@ -19,35 +19,33 @@ public class LightShader : IShader
             Enviroment = enviroment;
             Lights = lights.ToList();
         }
-        public void ComputeShader(Vertex vertex, Camera camera)
+        public void ComputeShader(ref Vertex vertex, Camera camera)
         {
             var globalPos = camera.Pivot.ToGlobalCoords(vertex.Position);
             foreach (var light in Lights)
             {
                 var distance = (light.Pos - globalPos).Length();
                 bool intersects = false;
-                foreach (var poly in Enviroment.Primitives.SelectMany(p => p.GetPolys()))
+                foreach (var poly in Enviroment.GetPrimitives().SelectMany(p => p.GetLocalPolys(camera)))
                 {
                     Vector3 i;
-                    intersects = VectorMath.AreIntersecting(poly.Item1.Position, poly.Item2.Position, poly.Item3.Position, globalPos, light.Pos, out i)
+                    intersects = VectorMath.AreIntersecting(poly.v1.Position, poly.v2.Position, poly.v3.Position, globalPos, light.Pos, out i)
                         && (i - globalPos).Length() > 1;
                     if (intersects) break;
                 }
                 if (!intersects)
                 {
-                    vertex.Color = Color.FromArgb(vertex.Color.A,
-                         (int)Math.Min(255, vertex.Color.R + light.Intensivity / distance),
-                         (int)Math.Min(255, vertex.Color.G + light.Intensivity / distance),
-                         (int)Math.Min(255, vertex.Color.B + light.Intensivity / distance)
-                         );
+                    vertex.Color = new TGAColor(vertex.Color.a,
+                        (byte)Math.Min(255, vertex.Color.r * light.Intensivity),
+                        (byte)Math.Min(255, vertex.Color.g * light.Intensivity),
+                        (byte)Math.Min(255, vertex.Color.b * light.Intensivity));
                 }
                 else
                 {
-                    vertex.Color = Color.FromArgb(vertex.Color.A,
-                        (int)Math.Min(255, vertex.Color.R + light.Intensivity / distance / 2),
-                        (int)Math.Min(255, vertex.Color.G + light.Intensivity / distance / 2),
-                        (int)Math.Min(255, vertex.Color.B + light.Intensivity / distance / 2)
-                        );
+                    vertex.Color = new TGAColor(vertex.Color.a,
+                        (byte)Math.Min(255, vertex.Color.r * light.Intensivity),
+                        (byte)Math.Min(255, vertex.Color.g * light.Intensivity),
+                        (byte)Math.Min(255, vertex.Color.b * light.Intensivity));
                 }
             }
         }

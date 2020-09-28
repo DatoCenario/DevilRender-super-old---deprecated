@@ -10,7 +10,7 @@ namespace DevilRender.Primitives
 {
     public class Cube : Primitive
     {
-        public Cube(Vector3 center, float sideLen)
+        public Cube(Vector3 center, float sideLen) : base()
         {
             Pivot = Pivot.BasePivot(center);
             var delta = new float[] { -sideLen / 2, sideLen / 2 };

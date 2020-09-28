@@ -23,11 +23,12 @@ public class ShadowMappingShader : IShader
             Enviroment = enviroment;
             LightIntensivity = lightIntensivity;
             Rasterizer = rasterizer;
-            Camera.OnRotate += () => UpdateVisible(Enviroment.Primitives);
-            Camera.OnMove += () => UpdateVisible(Enviroment.Primitives);
-            UpdateVisible(Enviroment.Primitives);
+            Camera.OnRotate += (an , ax) => UpdateVisible();
+            Camera.OnMove += (v) => UpdateVisible();
+            Enviroment.OnChange += () => UpdateVisible();
+            UpdateVisible();
         }
-        public void ComputeShader(Vertex vertex, Camera camera)
+        public void ComputeShader(ref Vertex vertex, Camera camera)
         {
             //вычисляем глобальные координаты вершины
             var gPos = camera.Pivot.ToGlobalCoords(vertex.Position);
@@ -43,26 +44,26 @@ public class ShadowMappingShader : IShader
                 var n = Vector3.Normalize(vertex.Normal);
                 var ld = Vector3.Normalize(lghDir);
                 //вычислем сдвиг глубины
-                float bias = (float)Math.Max(10 * (1.0 - VectorMath.Cross(n, ld)), 0.05);
-                if (ZBuffer[index] == null || ZBuffer[index].Position.Z + bias >= local.Z)
+                float bias = (float)Math.Max(5 * (1.0 - VectorMath.Cross(n, ld)), 0.05);
+                if (ZBuffer[index].Position.Z == 0 || ZBuffer[index].Position.Z + bias >= local.Z)
                 {
-                    vertex.Color = Color.FromArgb(vertex.Color.A,
-                        (int)Math.Min(255, vertex.Color.R + LightIntensivity / distance),
-                        (int)Math.Min(255, vertex.Color.G + LightIntensivity / distance),
-                        (int)Math.Min(255, vertex.Color.B + LightIntensivity / distance));
+                    vertex.Color = new TGAColor(vertex.Color.a,
+                        (byte)Math.Min(255, vertex.Color.r * LightIntensivity),
+                        (byte)Math.Min(255, vertex.Color.g * LightIntensivity),
+                        (byte)Math.Min(255, vertex.Color.b * LightIntensivity));
                 }
             }
             else
             {
-                vertex.Color = Color.FromArgb(vertex.Color.A,
-                        (int)Math.Min(255, vertex.Color.R + (LightIntensivity / distance) / 15),
-                        (int)Math.Min(255, vertex.Color.G + (LightIntensivity / distance) / 15),
-                        (int)Math.Min(255, vertex.Color.B + (LightIntensivity / distance) / 15));
+                vertex.Color = new TGAColor(vertex.Color.a,
+                    (byte)Math.Min(255, vertex.Color.r * LightIntensivity / 15),
+                    (byte)Math.Min(255, vertex.Color.g * LightIntensivity / 15),
+                    (byte)Math.Min(255, vertex.Color.b * LightIntensivity / 15));
             }
         }
-        public void UpdateVisible(IEnumerable<Primitive> primitives)
+        public void UpdateVisible()
         {
-            Rasterizer.ComputeVisibleVertices(primitives);
+            Rasterizer.ComputeVisibleVertices(Enviroment.GetPrimitives());
         }
     }
 }
