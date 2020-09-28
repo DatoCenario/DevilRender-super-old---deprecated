@@ -92,5 +92,9 @@ namespace DevilRender
         {
             return Vector3.Transform(global - Center , LocalCoordsMatrix);
         }
+        public Pivot Clone()
+        {
+            return new Pivot(Center, XAxis, YAxis, ZAxis);
+        }
     }
 }

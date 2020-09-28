@@ -28,8 +28,9 @@ namespace DevilRender
     }
     static class ObjParser
     {
-        public static Primitive FromObjFile(string filePath , FastBitmap texture)
+        public static Primitive FromObjFile(string filePath , string texturePath)
         {
+            var texture = texturePath == null ? null : FastBitmap.FromBitmap((Bitmap)Image.FromFile(texturePath));
             var vertices = new List<Vector3>();
             var indexes = new List<int>();
             var textureCoords = new List<Vector2>();

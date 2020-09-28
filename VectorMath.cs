@@ -124,5 +124,12 @@ namespace DevilRender
             intersect = Vector3.Zero;
             return false;
         }
+        public static Vector3 GetNormal(Vector3 p1, Vector3 p2, Vector3 p3) 
+        {
+            var v1 = p3 - p1;
+            var v2 = p2 - p1;
+            var dot = Dot(v1, v2);
+            return Vector3.Normalize(dot);
+        }
     }
 }

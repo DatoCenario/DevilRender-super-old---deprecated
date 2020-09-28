@@ -1,26 +1,32 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 
-namespace Render
+namespace DevilRender
 {
     public class Enviroment
     {
-        public List<Primitive> Primitives { get; private set; }
-        pubilc delegate void ChangeHandler;
+        public delegate void ChangeHandler();
         public event ChangeHandler OnChange;
-
-        public Enviroment(params Primitive[] primitives)
+        List<Primitive> Primitives;
+        public IEnumerable<Primitive> GetPrimitives()
+        {
+            foreach (var p in Primitives) yield return p;
+        }
+        public Enviroment(int zoneRaduis, params Primitive[] primitives)
         {
             Primitives = primitives.ToList();
         }
-
         public void AddPrimitive(Primitive primitive)
         {
             Primitives.Add(primitive);
+            primitive.Enviroment = this;
+        }
+        public void OnChangeEvent()
+        {
             OnChange?.Invoke();
         }
     }

@@ -29,12 +29,7 @@ namespace DevilRender
         {
             Enviroment = enviroment;
             Buffers = new Queue<Buffer>();
-            var shaders = new IShader[]
-                {
-                    new PhongModelShader(new Light(Vector3.Zero , 50f)) ,
-                    //new ShadowMappingShader(Enviroment , new Rasterizer(cameras[1]) , 50000f)
-                };
-            Rasterizers = cameras.Select(c => new Rasterizer(c , shaders)).ToList();
+            Rasterizers = cameras.Select(c => new Rasterizer(c)).ToList();
         }
         public void MoveNextRasterizer()
         {
@@ -42,7 +37,7 @@ namespace DevilRender
         }
         public void PrepareNewBuffer()
         { 
-            Buffers.Enqueue(Rasterizers[RasterizerIndex].Rasterize(Enviroment.Primitives));
+            Buffers.Enqueue(Rasterizers[RasterizerIndex].Rasterize(Enviroment.GetPrimitives()));
         }
     }
 }

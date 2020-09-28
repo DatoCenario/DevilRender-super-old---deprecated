@@ -13,23 +13,24 @@ namespace DevilRender
     {
         public Timer Timer { get; private set; }
         public BufferPreparer Preparer { get; private set; }
-        public Enviroment Enviroment { get; private set; }
         public List<Camera> Cameras { get; private set; }
         public Form RenderForm { get; private set; }
+        public Enviroment Enviroment { get; private set; }
         public Controller Controller { get; private set; }
 
         int Width;
         int Height;
-        public DevilRender(Enviroment enviroment, int winWidth, int winHeight)
+        public DevilRender(Enviroment enviroment, int winWidth, int winHeight , params Camera[] cameras)
         {
             Width = winHeight;
             Height = winHeight;
             Enviroment = enviroment;
-            Cameras = new List<Camera>() 
+            Cameras = cameras.ToList();
+            foreach (var cam in Cameras)
             {
-                new Camera(new Vector3(0, 0, -500), 1, (float)Math.PI / 2, winWidth, winHeight) ,
-                new Camera(new Vector3(100, 100, -500), 1, (float)Math.PI / 2, winWidth, winHeight) 
-            };
+                cam.ScreenWidth = winWidth;
+                cam.ScreenHeight = winHeight;
+            }
             Preparer = new BufferPreparer(Cameras , enviroment);
             RenderForm = new Form1()
             {

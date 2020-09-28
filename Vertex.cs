@@ -5,19 +5,21 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace DevilRender
 {
-    public class Vertex
+    public struct Vertex
     {
-        public FastBitmap Texture { get; set; }
-        public Vector3 Position { get; set; }
-        public Color Color { get; set; }
-        public Vector2 TextureCoord { get; set; }
-        public Vector3 Normal { get; set; }
+        public Primitive Primitive;
+        public Vector3 Position;
+        public TGAColor Color;
+        public Vector2 TextureCoord;
+        public Vector3 Normal;
 
-        public Vertex(Vector3 pos , Color color , Vector2 texCoord , Vector3 normal)
+        public Vertex(Vector3 pos , TGAColor color , Vector2 texCoord , Vector3 normal, Primitive primitive)
         {
+            Primitive = primitive;
             Position = pos;
             Color = color;
             TextureCoord = texCoord;

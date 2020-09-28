@@ -12,7 +12,7 @@ using DevilRender;
 
 namespace DevilRender
 {
-    public class Camera : IObject3D
+    public class Camera : Object3D
     {
         public int ScreenWidth { get; set; }
         public int ScreenHeight { get; set; }
@@ -20,11 +20,6 @@ namespace DevilRender
         public float ScreenDist { get; private set; }
         public float ObserveRange { get; private set; }
         public float Scale => ScreenWidth / (float)(2 * ScreenDist * Math.Tan(ObserveRange / 2));
-
-        public delegate void RotateHandler();
-        public delegate void MoveHandler();
-        public event RotateHandler OnRotate;
-        public event MoveHandler OnMove;
         public Camera(Vector3 center, float screenDist, float observeRange, int screenWidth, int screenHeight)
         {
             Pivot = Pivot.BasePivot(center);
@@ -33,15 +28,15 @@ namespace DevilRender
             ScreenWidth = screenWidth;
             ScreenHeight = screenHeight;
         }
-        public void Move(Vector3 v)
+        public override void Move(Vector3 v)
         {
             Pivot.Move(v);
-            OnMove?.Invoke();
+            OnMoveEvent(v);
         }
-        public void Rotate(float angle, Axis axis)
+        public override void Rotate(float angle, Axis axis)
         {
             Pivot.Rotate(angle, axis);
-            OnRotate?.Invoke();
+            OnRotateEvent(angle , axis);
         }
         public Vector2 ScreenProection(Vector3 local)
         {

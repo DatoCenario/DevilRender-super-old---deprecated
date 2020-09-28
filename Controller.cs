@@ -12,7 +12,7 @@ namespace DevilRender
     public class Controller
     {
         public HashSet<Keys> DownKeys;
-        public int Speed { get; set; } = 10;
+        public int Speed { get; set; } = 40;
 
         public DevilRender DevilRender;
         public Point LastMousePos { get; private set; }
@@ -46,14 +46,14 @@ namespace DevilRender
                 switch (key)
                 {
                     case Keys.Q:
-                        CurrentCamera.Rotate(-0.01f, Axis.Y);
+                        CurrentCamera.Rotate(-0.05f, Axis.Y);
                         break;
                     case Keys.S:
                         var v = -CurrentCamera.Pivot.ZAxis * Speed;
                         CurrentCamera.Move(v);
                         break;
                     case Keys.E:
-                        CurrentCamera.Rotate(0.01f, Axis.Y);
+                        CurrentCamera.Rotate(0.05f, Axis.Y);
                         break;
                     case Keys.W:
                         v = CurrentCamera.Pivot.ZAxis * Speed;
@@ -68,17 +68,17 @@ namespace DevilRender
                         CurrentCamera.Move(v);
                         break;
                     case Keys.R:
-                        CurrentCamera.Rotate(-0.01f, Axis.X);
+                        CurrentCamera.Rotate(-0.05f, Axis.X);
                         break;
                     case Keys.F:
-                        CurrentCamera.Rotate(0.01f, Axis.X);
+                        CurrentCamera.Rotate(0.05f, Axis.X);
                         break;
                     case Keys.Y:
                         DevilRender.Preparer.MoveNextRasterizer();
                         break;
                     case Keys.M:
                         DevilRender.Timer.Stop();
-                        var camera = new Camera(CurrentCamera.Pivot.Center , 1 , (float)Math.PI / 2 ,1920 , 1080);
+                        var camera = new Camera(CurrentCamera.Pivot.Center , 1 , (float)Math.PI / 2 ,1920 * 7 , 1080 * 7);
                         camera.Pivot.XAxis = CurrentCamera.Pivot.XAxis;
                         camera.Pivot.YAxis = CurrentCamera.Pivot.YAxis;
                         camera.Pivot.ZAxis = CurrentCamera.Pivot.ZAxis;

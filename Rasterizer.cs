@@ -7,7 +7,8 @@ using System.Numerics;
 using System.Drawing.Imaging;
 using System.Text;
 using System.Threading.Tasks;
-using Poly = System.Tuple<DevilRender.Vertex, DevilRender.Vertex, DevilRender.Vertex>;
+using System.Runtime.InteropServices;
+
 
 namespace DevilRender
 {
@@ -17,23 +18,17 @@ namespace DevilRender
         public int[] VisibleIndexes;
         public int VisibleCount;
         public FastBitmap PreviousBuffer;
-        public int Width;
-        public int Height;
+        public int Width => Camera.ScreenWidth;
+        public int Height => Camera.ScreenHeight;
+
         public Camera Camera;
-        public IShader[] Shaders;
         public int DefaultShading = 1;
 
-        public Rasterizer(Camera camera, params IShader[] shaders)
+        public Rasterizer(Camera camera)
         {
-            PreviousBuffer = new FastBitmap(1,1);
-            Shaders = shaders;
-            Width = camera.ScreenWidth;
-            Height = camera.ScreenHeight;
+            VisibleIndexes = new int[camera.ScreenWidth * camera.ScreenHeight];
+            PreviousBuffer = new FastBitmap(1, 1);
             Camera = camera;
-            if (Shaders.Length != 0)
-            {
-                DefaultShading = 3;
-            }
         }
         public Bitmap Rasterize(IEnumerable<Primitive> primitives)
         {
@@ -43,19 +38,41 @@ namespace DevilRender
             {
                 int index = VisibleIndexes[i];
                 var vertex = ZBuffer[index];
-                if (vertex.Texture != null)
+                var tex = vertex.Primitive.Texture;
+                if (tex != null)
                 {
-                    int texX = Math.Min((int)(vertex.TextureCoord.X * vertex.Texture.Width), vertex.Texture.Width - 1);
-                    int texY = Math.Min(vertex.Texture.Height - (int)(vertex.TextureCoord.Y * vertex.Texture.Height), vertex.Texture.Height - 1);
-                    var color = vertex.Texture.GetPixel(texX, texY);
-                    vertex.Color = Color.FromArgb(color.A, color.R / DefaultShading, color.G / DefaultShading, color.B / DefaultShading);
+                    int texX = Math.Min((int)(vertex.TextureCoord.X * tex.Width), tex.Width - 1);
+                    int texY = Math.Min(tex.Height - (int)(vertex.TextureCoord.Y * tex.Height), tex.Height - 1);
+                    var color = tex.GetPixel(texX, texY);
+                    vertex.Color = new TGAColor(color.A, color.R, color.G, color.B);
                 }
                 else
                 {
-                    vertex.Color = Color.FromArgb(255, 30, 30, 30);
+                    vertex.Color = new TGAColor(255, 30, 30, 30);
                 }
-                ComputeShaders(index, vertex, buffer);
+                //buffer.SetPixel(index,vertex.Color);
+                ComputeShaders(index, ref vertex, buffer);
             }
+
+            //while (!Parallel.For(0, VisibleCount, (i) =>
+            //{
+            //    int index = VisibleIndexes[i];
+            //    var vertex = ZBuffer[index];
+            //    var tex = vertex.Primitive.Texture;
+            //    if (tex != null)
+            //    {
+            //        int texX = Math.Min((int)(vertex.TextureCoord.X * tex.Width), tex.Width - 1);
+            //        int texY = Math.Min(tex.Height - (int)(vertex.TextureCoord.Y * tex.Height), tex.Height - 1);
+            //        var color = tex.GetPixel(texX, texY);
+            //        vertex.Color = Color.FromArgb(color.A, color.R / DefaultShading, color.G / DefaultShading, color.B / DefaultShading);
+            //    }
+            //    else
+            //    {
+            //        vertex.Color = Color.FromArgb(255, 30, 30, 30);
+            //    }
+            //    ComputeShaders(index, ref vertex, buffer);
+            //}).IsCompleted) ;
+
             PreviousBuffer.Dispose();
             PreviousBuffer = buffer;
             return buffer.Bitmap;
@@ -63,102 +80,364 @@ namespace DevilRender
         public void ComputeVisibleVertices(IEnumerable<Primitive> primitives)
         {
             VisibleCount = 0;
-            VisibleIndexes = new int[Width * Height];
             ZBuffer = new Vertex[Width * Height];
             foreach (var prim in primitives)
             {
-                foreach (var poly in prim.GetPolys())
+                // while(!Parallel.ForEach(prim.GetPolys(), (p) =>
+                //{
+                //    MakeLocal(p);
+                //    if (Observed(p))
+                //    {
+                //        ComputePoly(p.Item1 , p.Item2 , p.Item3 , prim);
+                //    }
+                //}).IsCompleted);
+                for (int i = 0; i < prim.Indexes.Length; i += 3)
                 {
-                    MakeLocal(poly);
-                    if (Observed(poly))
+                    var poly = prim.GetLocalPoly(Camera, i);
+                    if (Observed(ref poly))
                     {
-                        ComputePoly(poly.Item1, poly.Item2, poly.Item3);
+                        ComputePoly(ref poly);
                     }
                 }
             }
         }
-        public void ComputeShaders(int index, Vertex vertex, FastBitmap buffer)
+        public void ComputeShaders(int index, ref Vertex vertex, FastBitmap buffer)
         {
-            for (int i = 0; i < Shaders.Length; i++)
+            for (int i = 0; i < vertex.Primitive.Shaders.Length; i++)
             {
-                Shaders[i].ComputeShader(vertex, Camera);
+                vertex.Primitive.Shaders[i].ComputeShader(ref vertex, Camera);
             }
-            buffer.SetPixel(index, vertex.Color);
-        }
-        public bool Observed(Poly p)
-        {
-            return Camera.InObserve(p.Item1.Position)
-                || Camera.InObserve(p.Item2.Position) || Camera.InObserve(p.Item3.Position);
-        }
-        public void MakeLocal(Poly poly)
-        {
-            poly.Item1.Position = Camera.Pivot.ToLocalCoords(poly.Item1.Position);
-            poly.Item2.Position = Camera.Pivot.ToLocalCoords(poly.Item2.Position);
-            poly.Item3.Position = Camera.Pivot.ToLocalCoords(poly.Item3.Position);
-
-        }
-        
-        public void ComputePolyPart(Vector3 start, Vector3 deltaUp, Vector3 deltaDown,
-            int xSteps, int xDir, Vector2 pixelStart, float deltaUpPixel, float deltaDownPixel,
-            Vector2 textureStart, Vector2 deltaUpTexture, Vector2 deltaDownTexture,
-            Vector3 normalStart, Vector3 deltaUpNormal, Vector3 deltaDownNormal, Primitive primitive)
-        {
-            int pixelStartX = (int)pixelStart.X;
-            Vector3 up = start, down = start;
-            Vector2 textureUp = textureStart, textureDown = textureStart;
-            Vector3 normalUp = normalStart, normalDown = normalStart;
-            float pixelUp = pixelStart.Y, pixelDown = pixelStart.Y;
-            for (int i = 0; i <= xSteps; i++)
+            lock (buffer)
             {
-                int steps = ((int)pixelUp - (int)pixelDown);
-                Vector3 delta, deltaNormal; Vector2 deltaTexture;
-                if (steps != 0)
+                buffer.SetPixel(index, Color.FromArgb(vertex.Color.a, vertex.Color.r, vertex.Color.g, vertex.Color.b));
+            }
+        }
+        public bool Observed(ref Poly p)
+        {
+            return Camera.InObserve(p.v1.Position)
+                || Camera.InObserve(p.v2.Position) || Camera.InObserve(p.v3.Position);
+        }
+        public void ComputePoly(ref Poly poly)
+        {
+            var v1p = Camera.ScreenProection(poly.v1.Position);
+            var v2p = Camera.ScreenProection(poly.v2.Position);
+            var v3p = Camera.ScreenProection(poly.v3.Position);
+
+            if (v1p.X > v2p.X) { var w = v1p; v1p = v2p; v2p = w; var v = poly.v1; poly.v1 = poly.v2; poly.v2 = v; }
+            if (v2p.X > v3p.X) { var w = v2p; v2p = v3p; v3p = w; var v = poly.v2; poly.v2 = poly.v3; poly.v3 = v; }
+            if (v1p.X > v2p.X) { var w = v1p; v1p = v2p; v2p = w; var v = poly.v1; poly.v1 = poly.v2; poly.v2 = v; }
+
+            int x1 = (int)v1p.X;
+            int x2 = (int)v2p.X;
+            int x3 = (int)v3p.X;
+
+            int x12 = x2 - x1;
+            int x13 = x3 - x1;
+            int x32 = x3 - x2;
+
+            Vector3 u, d, du, dd, nu, nd, dnu, dnd;
+            Vector2 tu, td, dtu, dtd;
+            float pu, pd, dpu, dpd;
+            int rDiff;
+
+            if (x2 > 0 && x1 < Width)
+            {
+                u = poly.v1.Position;
+                d = poly.v1.Position;
+                tu = poly.v1.TextureCoord;
+                td = poly.v1.TextureCoord;
+                nu = poly.v1.Normal;
+                nd = poly.v1.Normal;
+                pu = v1p.Y;
+                pd = v1p.Y;
+
+                if (x12 != 0)
                 {
-                    delta = (up - down) / steps;
-                    deltaTexture = (textureUp - textureDown) / steps;
-                    deltaNormal = (normalUp - normalDown) / steps;
+                    dpu = (v2p.Y - v1p.Y) / x12;
+                    dpd = (v3p.Y - v1p.Y) / x13;
+
+                    if (dpu > dpd)
+                    {
+                        du = (poly.v2.Position - poly.v1.Position) / x12;
+                        dtu = (poly.v2.TextureCoord - poly.v1.TextureCoord) / x12;
+                        dnu = (poly.v2.Normal - poly.v1.Normal) / x12;
+
+                        dd = (poly.v3.Position - poly.v1.Position) / x13;
+                        dtd = (poly.v3.TextureCoord - poly.v1.TextureCoord) / x13;
+                        dnd = (poly.v3.Normal - poly.v1.Normal) / x13;
+                    }
+                    else
+                    {
+                        var t = dpu; dpu = dpd; dpd = t;
+
+                        du = (poly.v3.Position - poly.v1.Position) / x13;
+                        dtu = (poly.v3.TextureCoord - poly.v1.TextureCoord) / x13;
+                        dnu = (poly.v3.Normal - poly.v1.Normal) / x13;
+
+                        dd = (poly.v2.Position - poly.v1.Position) / x12;
+                        dtd = (poly.v2.TextureCoord - poly.v1.TextureCoord) / x12;
+                        dnd = (poly.v2.Normal - poly.v1.Normal) / x12;
+                    }
                 }
                 else
                 {
-                    delta = Vector3.Zero; deltaTexture = Vector2.Zero; deltaNormal = Vector3.Zero;
+                    dpu = 0;
+                    dpd = 0;
+                    dtu = Vector2.Zero;
+                    dtd = Vector2.Zero;
+                    dnu = Vector3.Zero;
+                    dnd = Vector3.Zero;
+                    du = Vector3.Zero;
+                    dd = Vector3.Zero;
                 }
-                int pixDown = (int)pixelDown;
-                Vector3 position = down;
-                Vector2 texCoord = textureDown;
-                Vector3 normal = normalDown;
-                for (int g = 0; g <= steps; g++)
+
+                rDiff = Width - 1 - x2;
+
+                if (rDiff < 0)
                 {
-                    var proection = new Point(pixelStartX + i * xDir, pixDown + g);
-                    if (proection.X >= 0 && proection.X < Width && proection.Y >= 0 && proection.Y < Height)
+                    x12 += rDiff;
+                }
+
+                if (x1 < 0)
+                {
+                    x12 += x1;
+                    u -= du * x1;
+                    d -= dd * x1;
+                    tu -= dtu * x1;
+                    td -= dtd * x1;
+                    nu -= dnu * x1;
+                    nd -= dnd * x1;
+                    pu -= dpu * x1;
+                    pd -= dpd * x1;
+                    x1 = 0;
+                }
+
+                //method for computing part of poly
+                for (int i = 0; i <= x12; i++)
+                {
+                    Vector3 pos = d;
+                    Vector3 norm = nd;
+                    Vector2 tex = td;
+                    Vector3 delta, deltaNormal;
+                    Vector2 deltaTexture;
+
+                    if (pu > 0)
                     {
-                        int index = proection.Y * Width + proection.X;
-                        if (ZBuffer[index] == null)
+                        int steps;
+                        int up = (int)pu, down = (int)pd;
+                        int diffU = Height - 1 - up;
+
+                        if (diffU < 0)
                         {
-                            ZBuffer[index] = new Vertex(position, Color.Black, texCoord, normal) { Primitive = primitive };
-                            VisibleIndexes[VisibleCount] = index;
-                            VisibleCount++;
+                            up = Height - 1;
                         }
-                        else if (ZBuffer[index].Position.Z > position.Z)
+
+                        steps = up - down;
+                        if (steps != 0)
                         {
-                            ZBuffer[index] = new Vertex(position, Color.Black, texCoord, normal) { Primitive = primitive };
+                            delta = (u - d) / steps;
+                            deltaTexture = (tu - td) / steps;
+                            deltaNormal = (nu - nd) / steps;
+                        }
+                        else
+                        {
+                            delta = Vector3.Zero;
+                            deltaNormal = Vector3.Zero;
+                            deltaTexture = Vector2.Zero;
+                        }
+
+                        if (down < 0)
+                        {
+                            pos -= delta * down;
+                            tex -= deltaTexture * down;
+                            norm -= deltaNormal * down;
+                            steps += down;
+                            down = 0;
+                        }
+                        int x = x1 + i;
+                        for (int g = 0; g <= steps; g++)
+                        {
+                            int y = down + g;
+                            int index = y * Width + x;
+                            if (ZBuffer[index].Position.Z == 0)
+                            {
+                                ZBuffer[index] = new Vertex(pos, new TGAColor(), tex, norm, poly.v1.Primitive);
+                                VisibleIndexes[VisibleCount] = index;
+                                VisibleCount++;
+                            }
+                            else if (ZBuffer[index].Position.Z > pos.Z)
+                            {
+                                ZBuffer[index] = new Vertex(pos, new TGAColor(), tex, norm, poly.v1.Primitive); ;
+                            }
+
+                            pos += delta;
+                            norm += deltaNormal;
+                            tex += deltaTexture;
                         }
                     }
 
-                    position += delta;
-                    texCoord += deltaTexture;
-                    normal += deltaNormal;
+                    d += dd;
+                    u += du;
+                    pu += dpu;
+                    pd += dpd;
+                    nu += dnu;
+                    nd += dnd;
+                    tu += dtu;
+                    td += dtd;
+                }
+                //*method for computing part of poly
+
+            }
+
+            if (x2 < Width && x3 > 0)
+            {
+                u = poly.v3.Position;
+                d = poly.v3.Position;
+                tu = poly.v3.TextureCoord;
+                td = poly.v3.TextureCoord;
+                nu = poly.v3.Normal;
+                nd = poly.v3.Normal;
+                pu = v3p.Y;
+                pd = v3p.Y;
+
+                if (x32 != 0)
+                {
+                    dpu = (v2p.Y - v3p.Y) / x32;
+                    dpd = (v1p.Y - v3p.Y) / x13;
+
+                    if (dpu > dpd)
+                    {
+                        du = (poly.v2.Position - poly.v3.Position) / x32;
+                        dtu = (poly.v2.TextureCoord - poly.v3.TextureCoord) / x32;
+                        dnu = (poly.v2.Normal - poly.v3.Normal) / x32;
+
+                        dd = (poly.v1.Position - poly.v3.Position) / x13;
+                        dtd = (poly.v1.TextureCoord - poly.v3.TextureCoord) / x13;
+                        dnd = (poly.v1.Normal - poly.v3.Normal) / x13;
+                    }
+                    else
+                    {
+                        var t = dpu; dpu = dpd; dpd = t;
+
+                        du = (poly.v1.Position - poly.v3.Position) / x13;
+                        dtu = (poly.v1.TextureCoord - poly.v3.TextureCoord) / x13;
+                        dnu = (poly.v1.Normal - poly.v3.Normal) / x13;
+
+                        dd = (poly.v2.Position - poly.v3.Position) / x32;
+                        dtd = (poly.v2.TextureCoord - poly.v3.TextureCoord) / x32;
+                        dnd = (poly.v2.Normal - poly.v3.Normal) / x32;
+                    }
+                }
+                else
+                {
+                    dpu = 0;
+                    dpd = 0;
+                    dtu = Vector2.Zero;
+                    dtd = Vector2.Zero;
+                    dnu = Vector3.Zero;
+                    dnd = Vector3.Zero;
+                    du = Vector3.Zero;
+                    dd = Vector3.Zero;
                 }
 
-                up += deltaUp; 
-                pixelUp += deltaUpPixel; 
-                textureUp += deltaUpTexture;
-                normalUp += deltaUpNormal;
-                down += deltaDown; 
-                pixelDown += deltaDownPixel;
-                textureDown += deltaDownTexture; 
-                normalDown += deltaDownNormal;
+                if (x2 < 0)
+                {
+                    x32 += x2;
+                    x2 = 0;
+                }
+
+                rDiff = Width - 1 - x3;
+
+                if (rDiff < 0)
+                {
+                    x32 += rDiff;
+                    u -= du * rDiff;
+                    d -= dd * rDiff;
+                    tu -= dtu * rDiff;
+                    td -= dtd * rDiff;
+                    nu -= dnu * rDiff;
+                    nd -= dnd * rDiff;
+                    pu -= dpu * rDiff;
+                    pd -= dpd * rDiff;
+                    x3 = Width - 1;
+                }
+
+                //method for computing part of poly
+                for (int i = 0; i <= x32; i++)
+                {
+                    Vector3 pos = d;
+                    Vector3 norm = nd;
+                    Vector2 tex = td;
+                    Vector3 delta, deltaNormal;
+                    Vector2 deltaTexture;
+
+                    if (pu > 0)
+                    {
+                        int steps;
+                        int up = (int)pu, down = (int)pd;
+                        int diffU = Height - 1 - up;
+
+                        if (diffU < 0)
+                        {
+                            up = Height - 1;
+                        }
+
+                        steps = up - down;
+                        if (steps != 0)
+                        {
+                            delta = (u - d) / steps;
+                            deltaTexture = (tu - td) / steps;
+                            deltaNormal = (nu - nd) / steps;
+                        }
+                        else
+                        {
+                            delta = Vector3.Zero;
+                            deltaNormal = Vector3.Zero;
+                            deltaTexture = Vector2.Zero;
+                        }
+
+                        if (down < 0)
+                        {
+                            pos -= delta * down;
+                            tex -= deltaTexture * down;
+                            norm -= deltaNormal * down;
+                            steps += down;
+                            down = 0;
+                        }
+
+                        int x = x3 - i;
+                        for (int g = 0; g <= steps; g++)
+                        {
+                            int y = down + g;
+                            int index = y * Width + x;
+                            if (ZBuffer[index].Position.Z == 0)
+                            {
+                                ZBuffer[index] = new Vertex(pos, new TGAColor(), tex, norm, poly.v1.Primitive);
+                                VisibleIndexes[VisibleCount] = index;
+                                VisibleCount++;
+                            }
+                            else if (ZBuffer[index].Position.Z > pos.Z)
+                            {
+                                ZBuffer[index] = new Vertex(pos,  new TGAColor(), tex, norm, poly.v1.Primitive); ;
+                            }
+
+                            pos += delta;
+                            norm += deltaNormal;
+                            tex += deltaTexture;
+                        }
+                    }
+
+                    d += dd;
+                    u += du;
+                    pu += dpu;
+                    pd += dpd;
+                    nu += dnu;
+                    nd += dnd;
+                    tu += dtu;
+                    td += dtd;
+                }
+                //*method for computing part of poly
             }
         }
-        
     }
 }
