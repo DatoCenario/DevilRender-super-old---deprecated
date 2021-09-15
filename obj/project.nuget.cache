@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "dgSpecHash": "hk9Khqr5TG2TtU+TPumbx3E6eUBE/bJax/omh3RDkFgClmepDGt9qUNxQ7TlcWZfyv3i6btLkqEctxbizWgChQ==",
+  "dgSpecHash": "DZv8In+KekjGWwlNg5i+UN6a+RRr9tB3BL98v49eTTCBWc+ZC88O+OrmXdwGxMU2xIMH57CDpb7rvA0Q4c0Ulw==",
   "success": true,
-  "projectFilePath": "F:\\c#\\DevilRender\\DevilRender\\DevilRender.csproj",
+  "projectFilePath": "C:\\Users\\Dato\\Desktop\\DevilRender\\DevilRender.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\Dato Cenario\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\3.0.1\\microsoft.aspnetcore.app.ref.3.0.1.nupkg.sha512",
-    "C:\\Users\\Dato Cenario\\.nuget\\packages\\microsoft.netcore.app.ref\\3.0.0\\microsoft.netcore.app.ref.3.0.0.nupkg.sha512",
-    "C:\\Users\\Dato Cenario\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\3.0.3\\microsoft.netcore.app.host.win-x64.3.0.3.nupkg.sha512",
-    "C:\\Users\\Dato Cenario\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\3.0.0\\microsoft.windowsdesktop.app.ref.3.0.0.nupkg.sha512"
+    "C:\\Users\\Dato\\.nuget\\packages\\microsoft.netcore.app.ref\\3.0.0\\microsoft.netcore.app.ref.3.0.0.nupkg.sha512",
+    "C:\\Users\\Dato\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\3.0.0\\microsoft.windowsdesktop.app.ref.3.0.0.nupkg.sha512",
+    "C:\\Users\\Dato\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\3.0.1\\microsoft.aspnetcore.app.ref.3.0.1.nupkg.sha512",
+    "C:\\Users\\Dato\\.nuget\\packages\\microsoft.netcore.app.host.win-x64\\3.0.3\\microsoft.netcore.app.host.win-x64.3.0.3.nupkg.sha512"
   ],
   "logs": []
 }

@@ -1,23 +1,20 @@
 {
   "format": 1,
   "restore": {
-    "F:\\c#\\DevilRender\\DevilRender\\DevilRender.csproj": {}
+    "C:\\Users\\Dato\\Desktop\\DevilRender\\DevilRender.csproj": {}
   },
   "projects": {
-    "F:\\c#\\DevilRender\\DevilRender\\DevilRender.csproj": {
+    "C:\\Users\\Dato\\Desktop\\DevilRender\\DevilRender.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "F:\\c#\\DevilRender\\DevilRender\\DevilRender.csproj",
+        "projectUniqueName": "C:\\Users\\Dato\\Desktop\\DevilRender\\DevilRender.csproj",
         "projectName": "DevilRender",
-        "projectPath": "F:\\c#\\DevilRender\\DevilRender\\DevilRender.csproj",
-        "packagesPath": "C:\\Users\\Dato Cenario\\.nuget\\packages\\",
-        "outputPath": "F:\\c#\\DevilRender\\DevilRender\\obj\\",
+        "projectPath": "C:\\Users\\Dato\\Desktop\\DevilRender\\DevilRender.csproj",
+        "packagesPath": "C:\\Users\\Dato\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Dato\\Desktop\\DevilRender\\obj\\",
         "projectStyle": "PackageReference",
-        "fallbackFolders": [
-          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
-        ],
         "configFilePaths": [
-          "C:\\Users\\Dato Cenario\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Dato\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -29,6 +26,7 @@
         },
         "frameworks": {
           "netcoreapp3.0": {
+            "targetAlias": "netcoreapp3.0",
             "projectReferences": {}
           }
         },
@@ -40,6 +38,7 @@
       },
       "frameworks": {
         "netcoreapp3.0": {
+          "targetAlias": "netcoreapp3.0",
           "imports": [
             "net461",
             "net462",
@@ -76,7 +75,7 @@
               "privateAssets": "none"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\3.1.302\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.302\\RuntimeIdentifierGraph.json"
         }
       }
     }

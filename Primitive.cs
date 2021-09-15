@@ -20,9 +20,8 @@ namespace DevilRender
         public int[] Indexes { get; protected set; }
         public int[] TextureCoordsIndexes { get; protected set; }
         public int[] NormalIndexes { get; protected set; }
-        public IShader[] Shaders { get; set; }
 
-        public Primitive(Vector3[] lv, Vector3[] gv, Vector3[] n, Vector2[] t, int[] i, int[] ni, int[] ti, IShader[] s, Pivot p)
+        public Primitive(Vector3[] lv, Vector3[] gv, Vector3[] n, Vector2[] t, int[] i, int[] ni, int[] ti, Pivot p)
         {
             Indexes = i;
             NormalIndexes = ni;
@@ -31,7 +30,6 @@ namespace DevilRender
             Normals = n;
             LocalVertices = lv;
             GlobalVertices = gv;
-            Shaders = s;
             Pivot = p;
         }
         public Primitive()
@@ -95,9 +93,9 @@ namespace DevilRender
                 vn3 = Normals[NormalIndexes[i + 2]];
             }
 
-            var ver1 = new Vertex(v1, new TGAColor(), vt1, vn1, this);
-            var ver2 = new Vertex(v2, new TGAColor(), vt2, vn2, this);
-            var ver3 = new Vertex(v3, new TGAColor(), vt3, vn3, this);
+            var ver1 = new Vertex(v1, vt1, vn1);
+            var ver2 = new Vertex(v2, vt2, vn2);
+            var ver3 = new Vertex(v3, vt3, vn3);
 
             return new Poly(ver1, ver2, ver3);
         }
@@ -126,9 +124,9 @@ namespace DevilRender
                     vn3 = Normals[NormalIndexes[i + 2]];
                 }
 
-                var ver1 = new Vertex(v1, new TGAColor(), vt1, vn1, this);
-                var ver2 = new Vertex(v2, new TGAColor(), vt2, vn2, this);
-                var ver3 = new Vertex(v3, new TGAColor(), vt3, vn3, this);
+                var ver1 = new Vertex(v1, vt1, vn1);
+                var ver2 = new Vertex(v2, vt2, vn2);
+                var ver3 = new Vertex(v3, vt3, vn3);
 
                 yield return new Poly(ver1, ver2, ver3);
             }
@@ -148,7 +146,6 @@ namespace DevilRender
                 Indexes.ToArray(),
                 NormalIndexes.ToArray(),
                 TextureCoordsIndexes.ToArray(),
-                Shaders.ToArray(),
                 Pivot.Clone());
         }
     }

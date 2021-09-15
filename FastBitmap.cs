@@ -52,6 +52,16 @@ namespace DevilRender
             int col = colour.ToArgb();
             Bits[index] = col;
         }
+        
+        public void SetPixel(int index, int color)
+        {
+            Bits[index] = color;
+        }
+        
+        public void SetPixel(int x, int y, int color)
+        {
+            Bits[x + (y * Width)] = color;
+        }
 
         public Color GetPixel(int x , int y)
         {

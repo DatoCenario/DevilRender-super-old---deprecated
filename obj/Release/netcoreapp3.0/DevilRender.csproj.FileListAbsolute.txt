@@ -1,0 +1,13 @@
+C:\Users\Dato\Desktop\DevilRender\bin\Release\netcoreapp3.0\DevilRender.exe
+C:\Users\Dato\Desktop\DevilRender\bin\Release\netcoreapp3.0\DevilRender.deps.json
+C:\Users\Dato\Desktop\DevilRender\bin\Release\netcoreapp3.0\DevilRender.runtimeconfig.json
+C:\Users\Dato\Desktop\DevilRender\bin\Release\netcoreapp3.0\DevilRender.runtimeconfig.dev.json
+C:\Users\Dato\Desktop\DevilRender\bin\Release\netcoreapp3.0\DevilRender.dll
+C:\Users\Dato\Desktop\DevilRender\bin\Release\netcoreapp3.0\DevilRender.pdb
+C:\Users\Dato\Desktop\DevilRender\obj\Release\netcoreapp3.0\DevilRender.csproj.AssemblyReference.cache
+C:\Users\Dato\Desktop\DevilRender\obj\Release\netcoreapp3.0\DevilRender.AssemblyInfoInputs.cache
+C:\Users\Dato\Desktop\DevilRender\obj\Release\netcoreapp3.0\DevilRender.AssemblyInfo.cs
+C:\Users\Dato\Desktop\DevilRender\obj\Release\netcoreapp3.0\DevilRender.csproj.CoreCompileInputs.cache
+C:\Users\Dato\Desktop\DevilRender\obj\Release\netcoreapp3.0\DevilRender.dll
+C:\Users\Dato\Desktop\DevilRender\obj\Release\netcoreapp3.0\DevilRender.pdb
+C:\Users\Dato\Desktop\DevilRender\obj\Release\netcoreapp3.0\DevilRender.genruntimeconfig.cache

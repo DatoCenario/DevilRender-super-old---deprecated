@@ -18,8 +18,8 @@ namespace DevilRender
     public struct Light
     {
         public Vector3 Pos;
-        public float Intensivity;
-        public Light(Vector3 pos , float intensivity)
+        public int Intensivity;
+        public Light(Vector3 pos , int intensivity)
         {
             Pos = pos;
             Intensivity = intensivity;

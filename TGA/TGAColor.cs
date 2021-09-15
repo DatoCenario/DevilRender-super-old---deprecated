@@ -18,5 +18,10 @@ namespace DevilRender
             this.g = g;
             this.b = b;
         }
+
+        public int ToInt()
+        {
+            return BitConverter.ToInt32(new byte[] {a, r, g, b});
+        }
     }
 }

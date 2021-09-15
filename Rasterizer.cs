@@ -1,128 +1,148 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.Concurrent;
-using System.Drawing;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Drawing.Imaging;
-using System.Text;
 using System.Threading.Tasks;
-using System.Runtime.InteropServices;
 
 
 namespace DevilRender
 {
-    public class Rasterizer
+    using System;
+    using System.Runtime.CompilerServices;
+    using System.Threading;
+
+    public class FragmentMap
     {
-        public Vertex[] ZBuffer;
-        public int[] VisibleIndexes;
-        public int VisibleCount;
-        public FastBitmap PreviousBuffer;
-        public int Width => Camera.ScreenWidth;
-        public int Height => Camera.ScreenHeight;
+        public int[] NotEmptyPositions { get; set; }
+        
+        public FragmentInfo[] Fragments { get; set; }
+        
+        public int LastPosIndex { get; set; }
+    }
 
-        public Camera Camera;
-        public int DefaultShading = 1;
+    public class DepthInfo
+    {
 
-        public Rasterizer(Camera camera)
+        public DepthInfo(int screenX, int screenY, float depth)
         {
-            VisibleIndexes = new int[camera.ScreenWidth * camera.ScreenHeight];
-            PreviousBuffer = new FastBitmap(1, 1);
-            Camera = camera;
+            ScreenX = screenX;
+            ScreenY = screenY;
+            Depth = depth;
         }
-        public Bitmap Rasterize(IEnumerable<Primitive> primitives)
+
+        public int ScreenX { get; set; }
+        
+        public int ScreenY { get; set; }
+        
+        public float Depth { get; set; }
+
+        public override int GetHashCode()
         {
-            ComputeVisibleVertices(primitives);
-            var buffer = new FastBitmap(Width, Height);
-            for (int i = 0; i < VisibleCount; i++)
+            return ((this.ScreenX * 37) + this.ScreenY) * 37;
+        }
+    }
+    
+    public class FragmentInfo
+    {
+        public FragmentInfo(Vector3 coordinate, Vector3 normal, Vector2 textureCoordinate, Vector2 screenCoordinate)
+        {
+            Coordinate = coordinate;
+            Normal = normal;
+            TextureCoordinate = textureCoordinate;
+            ScreenCoordinate = screenCoordinate;
+        }
+
+        public Vector3 Coordinate { get; set; }
+        
+        public Vector3 Normal { get; set; }
+        
+        public Vector2 TextureCoordinate { get; set; }
+        
+        public Vector2 ScreenCoordinate { get; set; }
+        
+        public Int32 Color { get; set; }
+    }
+
+    public interface IFragmentShader
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public FragmentInfo[] ComputeFragments(FragmentInfo[] polysFragments, Camera camera);
+    }
+
+    public class RasterizerService
+    {
+        private readonly object locker = new object();
+        private readonly List<IFragmentShader> fragmentShaders;
+        
+        public RasterizerService(List<IFragmentShader> fragmentShaders)
+        {
+            this.fragmentShaders = fragmentShaders;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<FastBitmap> GetSnapshot(Enviroment enviroment, Camera camera)
+        {
+            var map = await this.GetFragmentMap(enviroment, camera);
+            //var computedShaderFrags = await this.ComputeShaders(frags, camera);
+            var newBitmap = new FastBitmap(camera.ScreenWidth, camera.ScreenHeight);
+            for (int i = 0; i < map.LastPosIndex; i++)
             {
-                int index = VisibleIndexes[i];
-                var vertex = ZBuffer[index];
-                var tex = vertex.Primitive.Texture;
-                if (tex != null)
-                {
-                    int texX = Math.Min((int)(vertex.TextureCoord.X * tex.Width), tex.Width - 1);
-                    int texY = Math.Min(tex.Height - (int)(vertex.TextureCoord.Y * tex.Height), tex.Height - 1);
-                    var color = tex.GetPixel(texX, texY);
-                    vertex.Color = new TGAColor(color.A, color.R, color.G, color.B);
-                }
-                else
-                {
-                    vertex.Color = new TGAColor(255, 30, 30, 30);
-                }
-                //buffer.SetPixel(index,vertex.Color);
-                ComputeShaders(index, ref vertex, buffer);
+                var index = map.NotEmptyPositions[i];
+                var frag = map.Fragments[index];
+                newBitmap.SetPixel((int)frag.ScreenCoordinate.X, (int)frag.ScreenCoordinate.Y, frag.Color);
             }
 
-            //while (!Parallel.For(0, VisibleCount, (i) =>
-            //{
-            //    int index = VisibleIndexes[i];
-            //    var vertex = ZBuffer[index];
-            //    var tex = vertex.Primitive.Texture;
-            //    if (tex != null)
-            //    {
-            //        int texX = Math.Min((int)(vertex.TextureCoord.X * tex.Width), tex.Width - 1);
-            //        int texY = Math.Min(tex.Height - (int)(vertex.TextureCoord.Y * tex.Height), tex.Height - 1);
-            //        var color = tex.GetPixel(texX, texY);
-            //        vertex.Color = Color.FromArgb(color.A, color.R / DefaultShading, color.G / DefaultShading, color.B / DefaultShading);
-            //    }
-            //    else
-            //    {
-            //        vertex.Color = Color.FromArgb(255, 30, 30, 30);
-            //    }
-            //    ComputeShaders(index, ref vertex, buffer);
-            //}).IsCompleted) ;
+            return newBitmap;
+        }
 
-            PreviousBuffer.Dispose();
-            PreviousBuffer = buffer;
-            return buffer.Bitmap;
-        }
-        public void ComputeVisibleVertices(IEnumerable<Primitive> primitives)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public async Task<FragmentMap> GetFragmentMap(Enviroment enviroment, Camera camera)
         {
-            VisibleCount = 0;
-            ZBuffer = new Vertex[Width * Height];
-            foreach (var prim in primitives)
+            var fragmentMap = new FragmentMap()
             {
-                // while(!Parallel.ForEach(prim.GetPolys(), (p) =>
-                //{
-                //    MakeLocal(p);
-                //    if (Observed(p))
-                //    {
-                //        ComputePoly(p.Item1 , p.Item2 , p.Item3 , prim);
-                //    }
-                //}).IsCompleted);
-                for (int i = 0; i < prim.Indexes.Length; i += 3)
-                {
-                    var poly = prim.GetLocalPoly(Camera, i);
-                    if (Observed(ref poly))
-                    {
-                        ComputePoly(ref poly);
-                    }
-                }
-            }
-        }
-        public void ComputeShaders(int index, ref Vertex vertex, FastBitmap buffer)
-        {
-            for (int i = 0; i < vertex.Primitive.Shaders.Length; i++)
-            {
-                vertex.Primitive.Shaders[i].ComputeShader(ref vertex, Camera);
-            }
-            lock (buffer)
-            {
-                buffer.SetPixel(index, Color.FromArgb(vertex.Color.a, vertex.Color.r, vertex.Color.g, vertex.Color.b));
-            }
-        }
-        public bool Observed(ref Poly p)
-        {
-            return Camera.InObserve(p.v1.Position)
-                || Camera.InObserve(p.v2.Position) || Camera.InObserve(p.v3.Position);
-        }
-        public void ComputePoly(ref Poly poly)
-        {
-            var v1p = Camera.ScreenProection(poly.v1.Position);
-            var v2p = Camera.ScreenProection(poly.v2.Position);
-            var v3p = Camera.ScreenProection(poly.v3.Position);
+                Fragments = new FragmentInfo[camera.ScreenWidth * camera.ScreenHeight],
+                LastPosIndex = 0,
+                NotEmptyPositions = new int[camera.ScreenWidth * camera.ScreenHeight]
+            };
+            
+            var allPolys = enviroment.GetPrimitives()
+                .SelectMany(p => p.GetLocalPolys(camera))
+                .Where(p => this.Observed(p ,camera));
 
+            await Task.Run(() =>
+            {
+                Parallel.ForEach(allPolys, (p) => this.GetAllFragmentsFromPoly(p, camera, fragmentMap));
+            });
+
+            return fragmentMap;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public float[] GetDepthMap(Enviroment environment, Camera camera)
+        {
+           var depthInfos = environment.GetPrimitives()
+                .SelectMany(p => p.GetLocalPolys(camera))
+                .Where(p => this.Observed(p, camera))
+                .AsParallel()
+                .SelectMany(p => this.GetDepthMapFromPoly(p, camera))
+                .GroupBy(p => p)
+                .Select(g => g
+                    .Aggregate((f1, f2) => f1.Depth <= f2.Depth ? f1 : f2));
+           var map = new float[camera.ScreenWidth * camera.ScreenHeight];
+           foreach (var depthInfo in depthInfos)
+           {
+               map[camera.ScreenWidth * depthInfo.ScreenY + depthInfo.ScreenX] = depthInfo.Depth;
+           }
+
+           return map;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void GetAllFragmentsFromPoly(Poly poly, Camera camera, FragmentMap fragmentMap)
+        {
+            var v1p = camera.ScreenProection(poly.v1.Position);
+            var v2p = camera.ScreenProection(poly.v2.Position);
+            var v3p = camera.ScreenProection(poly.v3.Position);
+            
             if (v1p.X > v2p.X) { var w = v1p; v1p = v2p; v2p = w; var v = poly.v1; poly.v1 = poly.v2; poly.v2 = v; }
             if (v2p.X > v3p.X) { var w = v2p; v2p = v3p; v3p = w; var v = poly.v2; poly.v2 = poly.v3; poly.v3 = v; }
             if (v1p.X > v2p.X) { var w = v1p; v1p = v2p; v2p = w; var v = poly.v1; poly.v1 = poly.v2; poly.v2 = v; }
@@ -140,7 +160,7 @@ namespace DevilRender
             float pu, pd, dpu, dpd;
             int rDiff;
 
-            if (x2 > 0 && x1 < Width)
+            if (x2 > 0 && x1 < camera.ScreenWidth)
             {
                 u = poly.v1.Position;
                 d = poly.v1.Position;
@@ -191,7 +211,7 @@ namespace DevilRender
                     dd = Vector3.Zero;
                 }
 
-                rDiff = Width - 1 - x2;
+                rDiff = camera.ScreenWidth - 1 - x2;
 
                 if (rDiff < 0)
                 {
@@ -212,84 +232,13 @@ namespace DevilRender
                     x1 = 0;
                 }
 
-                //method for computing part of poly
-                for (int i = 0; i <= x12; i++)
-                {
-                    Vector3 pos = d;
-                    Vector3 norm = nd;
-                    Vector2 tex = td;
-                    Vector3 delta, deltaNormal;
-                    Vector2 deltaTexture;
-
-                    if (pu > 0)
-                    {
-                        int steps;
-                        int up = (int)pu, down = (int)pd;
-                        int diffU = Height - 1 - up;
-
-                        if (diffU < 0)
-                        {
-                            up = Height - 1;
-                        }
-
-                        steps = up - down;
-                        if (steps != 0)
-                        {
-                            delta = (u - d) / steps;
-                            deltaTexture = (tu - td) / steps;
-                            deltaNormal = (nu - nd) / steps;
-                        }
-                        else
-                        {
-                            delta = Vector3.Zero;
-                            deltaNormal = Vector3.Zero;
-                            deltaTexture = Vector2.Zero;
-                        }
-
-                        if (down < 0)
-                        {
-                            pos -= delta * down;
-                            tex -= deltaTexture * down;
-                            norm -= deltaNormal * down;
-                            steps += down;
-                            down = 0;
-                        }
-                        int x = x1 + i;
-                        for (int g = 0; g <= steps; g++)
-                        {
-                            int y = down + g;
-                            int index = y * Width + x;
-                            if (ZBuffer[index].Position.Z == 0)
-                            {
-                                ZBuffer[index] = new Vertex(pos, new TGAColor(), tex, norm, poly.v1.Primitive);
-                                VisibleIndexes[VisibleCount] = index;
-                                VisibleCount++;
-                            }
-                            else if (ZBuffer[index].Position.Z > pos.Z)
-                            {
-                                ZBuffer[index] = new Vertex(pos, new TGAColor(), tex, norm, poly.v1.Primitive); ;
-                            }
-
-                            pos += delta;
-                            norm += deltaNormal;
-                            tex += deltaTexture;
-                        }
-                    }
-
-                    d += dd;
-                    u += du;
-                    pu += dpu;
-                    pd += dpd;
-                    nu += dnu;
-                    nd += dnd;
-                    tu += dtu;
-                    td += dtd;
-                }
-                //*method for computing part of poly
-
+                this.InterpolationStep(x1, x12, 1,
+                                                                u, d, tu, td, nu, nd, pu, pd, du, dd, dtu,
+                                                                dtd, dnu, dnd, dpu,
+                                                                dpd, camera, fragmentMap);
             }
 
-            if (x2 < Width && x3 > 0)
+            if (x2 < camera.ScreenWidth && x3 > 0)
             {
                 u = poly.v3.Position;
                 d = poly.v3.Position;
@@ -346,7 +295,7 @@ namespace DevilRender
                     x2 = 0;
                 }
 
-                rDiff = Width - 1 - x3;
+                rDiff = camera.ScreenWidth - 1 - x3;
 
                 if (rDiff < 0)
                 {
@@ -359,85 +308,342 @@ namespace DevilRender
                     nd -= dnd * rDiff;
                     pu -= dpu * rDiff;
                     pd -= dpd * rDiff;
-                    x3 = Width - 1;
+                    x3 = camera.ScreenWidth - 1;
                 }
 
-                //method for computing part of poly
-                for (int i = 0; i <= x32; i++)
+                this.InterpolationStep(x3, x32, -1, u, d,
+                                            tu, td, nu, nd,
+                                            pu, pd, du, dd, dtu, dtd, dnu, dnd,
+                                            dpu, dpd, camera, fragmentMap);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private List<DepthInfo> GetDepthMapFromPoly(Poly poly, Camera camera)
+        {
+            var map = new List<DepthInfo>();
+            var v1p = camera.ScreenProection(poly.v1.Position);
+            var v2p = camera.ScreenProection(poly.v2.Position);
+            var v3p = camera.ScreenProection(poly.v3.Position);
+            
+            if (v1p.X > v2p.X) { var w = v1p; v1p = v2p; v2p = w; var v = poly.v1; poly.v1 = poly.v2; poly.v2 = v; }
+            if (v2p.X > v3p.X) { var w = v2p; v2p = v3p; v3p = w; var v = poly.v2; poly.v2 = poly.v3; poly.v3 = v; }
+            if (v1p.X > v2p.X) { var w = v1p; v1p = v2p; v2p = w; var v = poly.v1; poly.v1 = poly.v2; poly.v2 = v; }
+
+            int x1 = (int)v1p.X;
+            int x2 = (int)v2p.X;
+            int x3 = (int)v3p.X;
+
+            int x12 = x2 - x1;
+            int x13 = x3 - x1;
+            int x32 = x3 - x2;
+
+            float u, d, du, dd;
+            float pu, pd, dpu, dpd;
+            int rDiff;
+
+            if (x2 > 0 && x1 < camera.ScreenWidth)
+            {
+                u = poly.v1.Position.Z;
+                d = poly.v1.Position.Z;
+                pu = v1p.Y;
+                pd = v1p.Y;
+
+                if (x12 != 0)
                 {
-                    Vector3 pos = d;
-                    Vector3 norm = nd;
-                    Vector2 tex = td;
-                    Vector3 delta, deltaNormal;
-                    Vector2 deltaTexture;
+                    dpu = (v2p.Y - v1p.Y) / x12;
+                    dpd = (v3p.Y - v1p.Y) / x13;
 
-                    if (pu > 0)
+                    if (dpu > dpd)
                     {
-                        int steps;
-                        int up = (int)pu, down = (int)pd;
-                        int diffU = Height - 1 - up;
+                        du = (poly.v2.Position.Z - poly.v1.Position.Z) / x12;
+                        dd = (poly.v3.Position.Z - poly.v1.Position.Z) / x13;
+                    }
+                    else
+                    {
+                        var t = dpu; dpu = dpd; dpd = t;
+                        du = (poly.v3.Position.Z - poly.v1.Position.Z) / x13;
+                        dd = (poly.v2.Position.Z - poly.v1.Position.Z) / x12;
+                    }
+                }
+                else
+                {
+                    dpu = 0;
+                    dpd = 0;
+                    du = 0;
+                    dd = 0;
+                }
 
-                        if (diffU < 0)
-                        {
-                            up = Height - 1;
-                        }
+                rDiff = camera.ScreenWidth - 1 - x2;
 
-                        steps = up - down;
-                        if (steps != 0)
-                        {
-                            delta = (u - d) / steps;
-                            deltaTexture = (tu - td) / steps;
-                            deltaNormal = (nu - nd) / steps;
-                        }
-                        else
-                        {
-                            delta = Vector3.Zero;
-                            deltaNormal = Vector3.Zero;
-                            deltaTexture = Vector2.Zero;
-                        }
+                if (rDiff < 0)
+                {
+                    x12 += rDiff;
+                }
 
-                        if (down < 0)
-                        {
-                            pos -= delta * down;
-                            tex -= deltaTexture * down;
-                            norm -= deltaNormal * down;
-                            steps += down;
-                            down = 0;
-                        }
+                if (x1 < 0)
+                {
+                    x12 += x1;
+                    u -= du * x1;
+                    d -= dd * x1;
+                    pu -= dpu * x1;
+                    pd -= dpd * x1;
+                    x1 = 0;
+                }
 
-                        int x = x3 - i;
-                        for (int g = 0; g <= steps; g++)
-                        {
-                            int y = down + g;
-                            int index = y * Width + x;
-                            if (ZBuffer[index].Position.Z == 0)
-                            {
-                                ZBuffer[index] = new Vertex(pos, new TGAColor(), tex, norm, poly.v1.Primitive);
-                                VisibleIndexes[VisibleCount] = index;
-                                VisibleCount++;
-                            }
-                            else if (ZBuffer[index].Position.Z > pos.Z)
-                            {
-                                ZBuffer[index] = new Vertex(pos,  new TGAColor(), tex, norm, poly.v1.Primitive); ;
-                            }
+                map.AddRange(this.InterpolationStepForDepthMap(x1, x2, u, d, pu, pd, du, dd, dpu, dpd, camera));
+            }
 
-                            pos += delta;
-                            norm += deltaNormal;
-                            tex += deltaTexture;
-                        }
+            if (x2 < camera.ScreenWidth && x3 > 0)
+            {
+                u = poly.v3.Position.Z;
+                d = poly.v3.Position.Z;
+                pu = v3p.Y;
+                pd = v3p.Y;
+
+                if (x32 != 0)
+                {
+                    dpu = (v2p.Y - v3p.Y) / x32;
+                    dpd = (v1p.Y - v3p.Y) / x13;
+
+                    if (dpu > dpd)
+                    {
+                        du = (poly.v2.Position.Z - poly.v3.Position.Z) / x32;
+                        dd = (poly.v1.Position.Z - poly.v3.Position.Z) / x13;
+                    }
+                    else
+                    {
+                        var t = dpu; dpu = dpd; dpd = t;
+                        du = (poly.v1.Position.Z - poly.v3.Position.Z) / x13;
+                        dd = (poly.v2.Position.Z - poly.v3.Position.Z) / x32;
+                    }
+                }
+                else
+                {
+                    dpu = 0;
+                    dpd = 0;
+                    du = 0;
+                    dd = 0;
+                }
+
+                if (x2 < 0)
+                {
+                    x32 += x2;
+                    x2 = 0;
+                }
+
+                rDiff = camera.ScreenWidth - 1 - x3;
+
+                if (rDiff < 0)
+                {
+                    x32 += rDiff;
+                    u -= du * rDiff;
+                    d -= dd * rDiff;
+                    pu -= dpu * rDiff;
+                    pd -= dpd * rDiff;
+                    x3 = camera.ScreenWidth - 1;
+                }
+
+                map.AddRange(this.InterpolationStepForDepthMap(x3, x32, u, d, pu, pd, du, dd, dpu, dpd, camera));
+            }
+
+            return map;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private List<DepthInfo> InterpolationStepForDepthMap(
+            int xStart,
+            int xEnd,
+            float startUpZ,
+            float startDownZ,
+            float startProectionUp,
+            float startProectionDown,
+            float startUpZDelta,
+            float startDownZDelta,
+            float startProectionUpDelta,
+            float startProectionDownDelta,
+            Camera camera)
+        {
+            var map = new List<DepthInfo>();
+
+            for (int i = 0; i <= xEnd; i++)
+            {
+                var posZ = startDownZ;
+
+                if (startProectionUp > 0)
+                {
+                    int steps;
+                    int up = (int) startProectionUp, down = (int) startProectionDown;
+                    int diffU = camera.ScreenHeight - 1 - up;
+
+                    if (diffU < 0)
+                    {
+                        up = camera.ScreenHeight - 1;
                     }
 
-                    d += dd;
-                    u += du;
-                    pu += dpu;
-                    pd += dpd;
-                    nu += dnu;
-                    nd += dnd;
-                    tu += dtu;
-                    td += dtd;
+                    steps = up - down;
+                    float delta;
+                    if (steps != 0)
+                    {
+                        delta = (startUpZ - startDownZ) / steps;
+                    }
+                    else
+                    {
+                        delta = 0;
+                    }
+
+                    if (down < 0)
+                    {
+                        posZ -= delta * down;
+                        steps += down;
+                        down = 0;
+                    }
+
+                    int x = xStart + i;
+                    for (int g = 0; g <= steps; g++)
+                    {
+                        int y = down + g;
+                        map.Add(new DepthInfo(x, y, posZ));
+                        posZ += delta;
+                    }
                 }
-                //*method for computing part of poly
+
+                startDownZ+= startDownZDelta;
+                startUpZ += startUpZDelta;
+                startProectionDown += startProectionDownDelta;
+                startProectionUp += startProectionUpDelta;
             }
+
+            return map;
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void InterpolationStep(
+            int xStart,
+            int xSteps,
+            int xDir,
+            Vector3 startUp,
+            Vector3 startDown,
+            Vector2 startTexUp,
+            Vector2 startTexDown,
+            Vector3 startNormalUp,
+            Vector3 startNormalDown,
+            float startProectionUp,
+            float startProectionDown,
+            Vector3 startUpDelta,
+            Vector3 startDownDelta,
+            Vector2 startTexUpDelta,
+            Vector2 startTexDownDelta,
+            Vector3 startNormalUpDelta,
+            Vector3 startNormalDownDelta,
+            float startProectionUpDelta,
+            float startProectionDownDelta,
+            Camera camera,
+            FragmentMap fragmentMap)
+        {
+            for (int i = 0; i <= xSteps; i++)
+            {
+                Vector3 pos = startDown;
+                Vector3 norm = startNormalDown;
+                Vector2 tex = startTexDown;
+                Vector3 delta, deltaNormal;
+                Vector2 deltaTexture;
+
+                if (startProectionUp > 0)
+                {
+                    int steps;
+                    int up = (int) startProectionUp, down = (int) startProectionDown;
+                    int diffU = camera.ScreenHeight - 1 - up;
+
+                    if (diffU < 0)
+                    {
+                        up = camera.ScreenHeight - 1;
+                    }
+
+                    steps = up - down;
+                    if (steps != 0)
+                    {
+                        delta = (startUp - startDown) / steps;
+                        deltaTexture = (startTexUp - startTexDown) / steps;
+                        deltaNormal = (startNormalUp - startNormalDown) / steps;
+                    }
+                    else
+                    {
+                        delta = Vector3.Zero;
+                        deltaNormal = Vector3.Zero;
+                        deltaTexture = Vector2.Zero;
+                    }
+
+                    if (down < 0)
+                    {
+                        pos -= delta * down;
+                        tex -= deltaTexture * down;
+                        norm -= deltaNormal * down;
+                        steps += down;
+                        down = 0;
+                    }
+
+                    int x = xStart + (i * xDir);
+                    for (int g = 0; g <= steps; g++)
+                    {
+                        int y = down + g;
+                        int index = y * camera.ScreenWidth + x;
+
+                        if (fragmentMap.Fragments[index] == null)
+                        {
+                            var frag = new FragmentInfo(
+                                pos,
+                                norm,
+                                tex,
+                                new Vector2(x, y)) {Color = int.MaxValue};
+                            fragmentMap.Fragments[index] = frag;
+                            Monitor.Enter(this.locker);
+                            fragmentMap.NotEmptyPositions[fragmentMap.LastPosIndex] = index;
+                            fragmentMap.LastPosIndex++;
+                            Monitor.Exit(this.locker);
+                        }
+                        else if(fragmentMap.Fragments[index].Coordinate.Z > pos.Z)
+                        {
+                            var frag = new FragmentInfo(
+                                pos,
+                                norm,
+                                tex,
+                                new Vector2(x, y)) {Color = int.MaxValue};
+                            fragmentMap.Fragments[index] = frag;
+                        }
+
+                        pos += delta;
+                        norm += deltaNormal;
+                        tex += deltaTexture;
+                    }
+                }
+
+                startDown += startDownDelta;
+                startUp += startUpDelta;
+                startTexDown += startTexDownDelta;
+                startTexUp += startTexUpDelta;
+                startNormalDown += startNormalDownDelta;
+                startNormalUp += startNormalUpDelta;
+                startProectionDown += startProectionDownDelta;
+                startProectionUp += startProectionUpDelta;
+            }
+        }
+
+        private async Task<IEnumerable<FragmentInfo>> ComputeShaders(FragmentInfo[] fragmentInfos, Camera camera)
+        {
+            foreach (var shader in this.fragmentShaders)
+            { 
+                fragmentInfos = shader.ComputeFragments(fragmentInfos, camera);
+            }
+
+            return fragmentInfos;
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool Observed(Poly p, Camera camera)
+        {
+            return camera.InObserve(p.v1.Position)
+                   || camera.InObserve(p.v2.Position) || camera.InObserve(p.v3.Position);
         }
     }
 }
